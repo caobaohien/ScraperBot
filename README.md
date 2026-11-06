@@ -66,7 +66,7 @@ Log format (stdout, grepped from Render **Runs** tab):
 - vì AI Studio UI](https://aistudio.google.com/) không có tool File Search - để trỏ tới store vì vậy assistant được dựng bằng scripts/ask.py
 - scripts/ask.py (assistant chính thức): đọc system_prompt.txt + store, gọi model với tool File Search, in câu trả lời và danh sách citation. Chụp màn hình terminal
 
-- ![Screenshot](./images/the answering of Assistant.png)
+- ![Screenshot](./images/the-answering-of-assistant.png)
 
 After upload, open [AI Studio](https://aistudio.google.com/), create a new prompt, paste the system instructions from `prompts/system_prompt.txt`, attach the `optibot-support-kb` store under **Tools → File Search**, and ask:
 
