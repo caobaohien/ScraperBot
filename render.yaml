@@ -1,0 +1,28 @@
+services:
+  - type: cron
+    name: kb-sync-daily
+    runtime: docker
+    schedule: "0 20 * * *"   # UTC = 03:00 ICT (UTC+7)
+    plan: starter
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false           # set manually in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: STORE_DISPLAY_NAME
+        value: optibot-support-kb
+      - key: ZENDESK_BASE_URL
+        value: https://support.optisigns.com
+      - key: ZENDESK_LOCALE
+        value: en-us
+      - key: CHUNK_MAX_TOKENS
+        value: "400"
+      - key: CHUNK_OVERLAP_TOKENS
+        value: "60"
+      - key: MAX_WORKERS
+        value: "4"
+      - key: ARTICLE_LIMIT
+        value: "0"
+      - key: DRY_RUN
+        value: "false"
+
