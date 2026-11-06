@@ -1,0 +1,43 @@
+name: daily-sync
+
+on:
+  schedule:
+    - cron: "0 20 * * *"     # giờ UTC; = 03:00 sáng giờ Việt Nam
+  workflow_dispatch:          # nút chạy tay để demo/kiểm thử
+
+permissions:
+  contents: write             # chỉ cần nếu job commit runs/last_run.json
+
+concurrency:
+  group: daily-sync
+  cancel-in-progress: false   # không chạy chồng 2 lần
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run scraper-uploader
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
+          STORE_DISPLAY_NAME: ${{ vars.STORE_DISPLAY_NAME || 'optibot-support-kb' }}
+          PYTHONPATH: src
+        run: python main.py | tee run.log
+
+      - name: Upload log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-log
+          path: run.log
+          retention-days: 30
