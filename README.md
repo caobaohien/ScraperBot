@@ -1,4 +1,4 @@
-# kb-sync-x7q2 — Zendesk Help Center → Gemini File Search
+My scraper-uploader → Gemini File Search
 
 Scrapes all published articles from the Zendesk Help Center API (`en-us`), converts them to clean Markdown, uploads them to a Gemini File Search vector store, and re-syncs daily (delta only). Powers **OptiBot**, a factual customer-support assistant that cites source articles.
 
@@ -11,9 +11,9 @@ pip install -r requirements.txt
 
 ## Run locally
 
-# create .env file and add your GEMINI_API_KEY into enviroment variables
-# Bạn mở PowerShell và chạy 1 lệnh duy nhất (chỉ cần chạy một lần)
-# [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'your GEMINI_API_KEY', 'User')
+- create .env file and add your GEMINI_API_KEY into enviroment variables
+- Bạn mở PowerShell và chạy 1 lệnh duy nhất (chỉ cần chạy một lần)
+- [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'your GEMINI_API_KEY', 'User')
 
 ```bash
 # Task 1 — Scrape → data/articles/*.md
@@ -65,6 +65,8 @@ Log format (stdout, grepped from Render **Runs** tab):
 ## Assistant sanity check
 - vì AI Studio UI](https://aistudio.google.com/) không có tool File Search - để trỏ tới store vì vậy assistant được dựng bằng scripts/ask.py
 - scripts/ask.py (assistant chính thức): đọc system_prompt.txt + store, gọi model với tool File Search, in câu trả lời và danh sách citation. Chụp màn hình terminal
+
+- ![Screenshot](./images/the answering of Assistant.png)
 
 After upload, open [AI Studio](https://aistudio.google.com/), create a new prompt, paste the system instructions from `prompts/system_prompt.txt`, attach the `optibot-support-kb` store under **Tools → File Search**, and ask:
 
