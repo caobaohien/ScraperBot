@@ -3,6 +3,10 @@
 Conversion rules (per spec):
 - script/style/noscript/form/button → decompose (remove entirely)
 - iframe → <a href=src>Embedded video: title</a>
+- <img>/<a> whose URL is an inline ``data:`` URI (base64 image) → short text
+  placeholder. A single embedded screenshot can be >100 KB on one line; the
+  Gemini File Search whitespace chunker cannot split it and the upload hangs
+  until it times out (503), so these must never reach the .md file.
 - div/span → unwrap (keep content)
 - empty <p> (no text, no img, no a) → decompose
 - Keep only: href, src, alt, title attributes
@@ -14,18 +18,52 @@ Conversion rules (per spec):
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 
 from bs4 import BeautifulSoup
 from markdownify import markdownify as _md
+
+logger = logging.getLogger(__name__)
 
 KEEP_ATTRS = {"href", "src", "alt", "title"}
 _ZERO_WIDTH = re.compile(r"[\u200b\u200c\u200d\ufeff]")
 _TRAILING_SPACES = re.compile(r"[ \t]+\n")
 _MANY_BLANK_LINES = re.compile(r"\n{3,}")
 
+# Safety net applied to the final Markdown, in case a data: URI slips past the
+# DOM step (e.g. it appears in plain text or inside a code block).
+_MD_DATA_IMAGE = re.compile(r"!\[([^\]]*)\]\(\s*data:[^)]*\)", re.IGNORECASE)
+_BARE_DATA_URI = re.compile(r"data:[\w.+-]+/[\w.+-]+;base64,[A-Za-z0-9+/=_-]{100,}", re.IGNORECASE)
 
-def clean_dom(html: str) -> BeautifulSoup:
+
+def _is_data_uri(value: str | None) -> bool:
+    return bool(value) and value.strip().lower().startswith("data:")
+
+
+def _strip_inline_data_uris(soup: BeautifulSoup) -> int:
+    """Replace <img>/<a> pointing at a ``data:`` URI with a short text placeholder.
+
+    Returns the number of elements replaced.
+    """
+    removed = 0
+
+    for img in soup.find_all("img"):
+        if _is_data_uri(img.get("src")):
+            alt = (img.get("alt") or "").strip()
+            img.replace_with(f"[Inline image: {alt}]" if alt else "[Inline image]")
+            removed += 1
+
+    for a in soup.find_all("a"):
+        if _is_data_uri(a.get("href")):
+            # keep the visible link text, drop the huge URL
+            a.unwrap()
+            removed += 1
+
+    return removed
+
+
+def clean_dom(html: str, context: str = "") -> BeautifulSoup:
     """Clean the HTML DOM before Markdown conversion."""
     # Wrap any stray embed code snippet (&lt;iframe...&gt;) in <pre><code> if not already in <pre>
     if "&lt;iframe" in (html or "") and not re.search(r"<pre[^>]*>\s*(?:<code>)?\s*&lt;iframe", html or ""):
@@ -40,6 +78,11 @@ def clean_dom(html: str) -> BeautifulSoup:
     # Remove unwanted elements entirely
     for tag in soup(["script", "style", "noscript", "form", "button"]):
         tag.decompose()
+
+    # Replace inline base64 images/links BEFORE attributes are stripped (src/href are kept below)
+    n_data = _strip_inline_data_uris(soup)
+    if n_data:
+        logger.info("Stripped %d inline data: URI(s)%s", n_data, f" in {context}" if context else "")
 
     # Convert iframe → anchor link so the YouTube URL survives
     for iframe in soup.find_all("iframe"):
@@ -65,10 +108,14 @@ def clean_dom(html: str) -> BeautifulSoup:
     return soup
 
 
-def html_to_md(html: str) -> str:
+def html_to_md(html: str, context: str = "") -> str:
     """Convert HTML string to clean Markdown."""
-    cleaned = str(clean_dom(html))
+    cleaned = str(clean_dom(html, context))
     text = _md(cleaned, heading_style="ATX", bullets="-")
+
+    # Safety net: no base64 payload may survive into the Markdown
+    text = _MD_DATA_IMAGE.sub(lambda m: f"[Inline image: {m.group(1).strip()}]" if m.group(1).strip() else "[Inline image]", text)
+    text = _BARE_DATA_URI.sub("[inline data removed]", text)
 
     # Clean up whitespace artefacts
     text = text.replace("\u00a0", " ")          # non-breaking space → regular space
@@ -93,7 +140,7 @@ def build_markdown(
     metadata-only changes (updated_at) do not trigger a re-upload.
     """
     title = (article.get("title") or "").strip()
-    body_md = html_to_md(article.get("body") or "")
+    body_md = html_to_md(article.get("body") or "", context=slug_from_url(article.get("html_url") or ""))
 
     # Build header block
     header_lines = [
