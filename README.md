@@ -32,6 +32,10 @@ python scripts/ask.py "How do I add a YouTube video?"
 python main.py
 ```
 
+## link to daily job logs
+- https://github.com/caobaohien/ScraperBot/actions/workflows/daily-sync.yml
+- https://github.com/caobaohien/ScraperBot/actions/runs/42336488234
+
 ## Docker
 
 ```bash
@@ -54,6 +58,8 @@ docker run --rm -e API_KEY=<your_key> kb-sync
 Content hash: `sha256(title.strip() + "\n" + markdown_body)` — deliberately excludes `updated_at` so metadata-only edits don't trigger re-uploads. State is read back from the Gemini store's `custom_metadata` (Plan A) or from the `<slug>__<hash8>.md` display_name encoding (Plan B fallback). No persistent disk needed — compatible with Render Cron.
 
 ## Daily job
+
+Use GitHub Actions instead because it's free
 
 Render Cron Job (Docker), schedule `0 20 * * *` UTC (= 03:00 ICT). Set `GEMINI_API_KEY` in the Render dashboard. Each run exits 0 on success, 1 if any upload failed.
 
